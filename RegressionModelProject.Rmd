@@ -1,0 +1,248 @@
+---
+title: "Motor Trend - Transmission Efficiency"
+author: "Brett Taylor"
+date: "August 3, 2015"
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document: default
+---
+```{r init, echo=FALSE, message=FALSE,warning=FALSE}
+#Load some basic libraries and data
+library(datasets); data("mtcars")
+library(dplyr)
+library(knitr)
+library(pander)
+mtcars.f<-mtcars
+mtcars.f$cyl<-as.factor(mtcars$cyl)
+mtcars.f$am<- factor(mtcars$am,
+levels = c(1,0),
+labels = c("Manual","Auto"))
+mtcars.f$vs<-as.factor(mtcars$vs)
+mtcars.f$gear<-as.factor(mtcars$gear)
+mtcars.f$carb<-as.factor(mtcars$carb) 
+fitAM.f  <- lm(mpg~am,data = mtcars.f)
+summary.of.fitAM<-summary(fitAM.f)
+
+fields <- names(mtcars)
+descriptions <- c(
+"Miles/(US) gallon",	 "Number of cylinders  " 
+,	 "Displacement (cu.in.)"    
+, "Gross horsepower"   
+, "Rear axle ratio"    
+,	 "Weight (lb/1000)"    
+,	"1/4 mile time"    
+,"V/S - Engine type - V Shape or Straight" 
+, "Transmission (0 = automatic, 1 = manual)"   
+,	 "Number of forward gears"    
+, "Number of carburetors"     )
+fieldInfo <- data.frame(fields,descriptions)
+```
+#Executive Summary
+
+Our company Motor Trend Magazine did a study in 1974 that collected data on 32 cars that included information about fuel consumption, and also the design factors that may have an influence in this area. The industry has gone through a transformation where the majority of automobiles now use automatic transmissions instead of the traditional manual transmission.  We have identified that there appears to be a significant correlation between the transmission type, and the miles per gallon.  While this appears to be true, when performing a deeper analysis, we see that other automobile design factors do impact the miles per gallon.  You can drive automatic or manual transmission based cars and recognize one of the most impactful aspect of your car is the mass of the vehicle.  When evaluating the weight vs. the transmission type, we then see that the manual transmission is more efficient for light cars, and automatic is better for heavy cars.  If you want the most efficient, then go with a car under 2,800 lbs. and with a standard transmission.
+ 
+
+#The Data
+
+The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models).  A data frame with 32 observations on 11 variables is used for this analysis. 
+
+```{r ,echo=FALSE, asis=TRUE}
+kable(fieldInfo,caption = "Description of data captured in the mtcars data set")
+```
+
+
+#Analysis    
+
+##Which variables should we include in the analysis?
+A good prediction of whether the trend towards the automatic transmission has had a positive impact on the gas mileage of cars requires that first we look to ensure that the data we utilize includes the variables that we know could cause gas mileage to go up or down.  Next we need to evaulate if the variables that do look like they matter, have a relationship between each other.   If this is true, we will remove variables that are too tighlty correlated, so that we do not create an invalid model.   
+
+The outcome we are looking at is the Miles per US Gallon (MPG) and is known as the dependent variable.  The independent variables may allow us to predict the outcome, start with the remaining variables in the data set.  
+
+Our first review of this information is the _Figure 1._ scatter plot found in the appendix. We reviewed each of the variables, and provided a linear regression which is displayed in each graph. We also looked at the correlation between miles per gallon and the independent variable to see which variables more than likely do not have any impact on the mpg.  We identified in this review that there were 2 variables that had minimal impact on the miles per gallon of the automobiles.  These variables are __qsec__  _the time it takes to drive 1/4th mile_, and __gear__ _the number of forward acting gears in the transmission_.  Since both were under $|.5|$ correlation, and they had too high of p-values, we rejected them from the analysis.   
+
+We also identified several variable with high correlation between each other and this made them suspect.  The initial review was performed by reviewing _Figure 2._ in the appendix which shows a correlation plot between all variables with MPG as the dependent variable.  One of the most important relationships was found between wt, cyl, and disp which made sense.  To complete the analysis, we created linear models and used ANOVA to determine which independent variables should remain.
+
+
+```{r,asis=TRUE, echo=FALSE,size=8} 
+library(knitr)
+fit <- lm(mpg ~ am , data=mtcars.f)
+fit1 <- update(fit, .~.+wt)
+fit3 <- update(fit1, .~.+disp)
+fit5 <- update(fit3, .~.+vs)
+fit6 <- update(fit5, .~.+carb+qsec)
+fit8 <- update(fit6, .~.+hp+drat)
+fit9 <- update(fit8, .~.+gear)
+an<-anova(fit,fit1,fit3,fit5,fit6,fit8,fit9)
+mods <- paste("Model",1:nrow(an),sep=" ")
+
+kable(attr(an,"heading"))
+
+kable(cbind(model=mods,an),digits = 4,caption="ANOVA model evaluation results")
+```
+
+The ANOVA analysis identified that there is only one coefficient under .5 % which is the _wt_ variable which means the mass of the car is the variable worth analyzing.  To determine wheter the manual or automatic transmission was more efficient, we first created a regression model that compared both  auto to manual, and created a scatter plot (_Figure 3._).  This demonstrated that when a car is under the weight of approximately 2808 pounds, the mpg are more efficient for a manual automobile.  Over this mass, then we see that the automatic transmission is more efficient.  
+
+
+\newpage
+
+#Appendix   
+
+
+```{r func, message=FALSE,warning=FALSE,echo=FALSE,fig.cap="Functions"}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+ buildRegressionPlot<- function(ds,x,y) {
+  fmla <- as.formula(paste(x, y,sep = " ~ "))
+  fit <- lm(fmla,data=ds)
+  summ <- summary(fit)
+  cs <- summ$coefficients
+  yVect <- ds[,(which(names(ds)==y))]
+  corrVal <- cor(ds,yVect)
+  pValue <- cs[2,4]
+  myGrob <- grobTree(textGrob(sprintf("P Value: %2.2e",pValue), x=0.1,  y=0.95, hjust=0,
+  gp=gpar(col="darkred", fontsize=12, fontface="italic")))
+  p <-ggplot(data =ds,aes_string(x = y, y = x))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  ggtitle(paste("Correlation =",round(corrVal,3)))+
+   labs(x = y, y = "Miles per Gallon(U.S.)")+
+   annotation_custom(myGrob)+
+    theme_bw()
+
+  return(list(fit=fit,gplot=p,corr=corrVal))
+}
+
+plotIt <- function (df, dependentVar,removeVars=c()) {
+  independentVars <- setdiff(names(df),dependentVar)
+  independentVars <- setdiff(independentVars,removeVars)
+  plotList <- as.list(1:length(independentVars))
+  cnt <- 1
+  for(i in independentVars) {
+    fitAndPlot <-  buildRegressionPlot(df,dependentVar,i)
+    plotList[[cnt]]$fit <-fitAndPlot$fit
+    plotList[[cnt]]$plot <-fitAndPlot$gplot
+    plotList[[cnt]]$independent <- i
+    cnt <- cnt + 1
+  }
+  thePlot <- function(x) x$plot
+  plots<-lapply(plotList,thePlot)
+  aPlot <- do.call("grid.arrange", c(plots, ncol=3,main = "Independent vs. Dependent \n Corelation Plots",sub="Figure 1."))
+  return(list(plot=aPlot,results=plotList))
+  
+   
+}
+
+##Return the plots that will be layed out in a grid.
+plotCorrelations <- function (df, dependentVar,removeVars=c()) {
+  independentVars <- setdiff(names(df),dependentVar)
+  independentVars <- setdiff(independentVars,removeVars)
+  plotList <- as.list(1:length(independentVars))
+  cnt <- 1
+  for(i in independentVars) {
+    fitAndPlot <-  buildRegressionPlot(df,dependentVar,i)
+    plotList[[cnt]]$fit <-fitAndPlot$fit
+    plotList[[cnt]]$plot <-fitAndPlot$gplot
+    plotList[[cnt]]$independent <- i
+    cnt <- cnt + 1
+  }
+  thePlot <- function(x) x$plot
+  plots<-lapply(plotList,thePlot)
+  return(plots)
+
+}
+
+
+```
+
+
+##Independent vs. Dependent    
+
+```{r build, echo=FALSE,message=FALSE,warning=FALSE,fig.cur=2,fig.cap="Compare Dependent(Miles per U.S. Gallon) to Independent Variables",,fig.height=8,fig.width=8}
+
+coorPlots <- plotCorrelations(mtcars,dependentVar="mpg")
+#grid.arrange(coorPlots,ncol=3)
+do.call("grid.arrange", c(coorPlots, ncol=3))
+ 
+```
+\newpage
+
+
+```{r, echo=FALSE,fig.cap="Regression fit plot" }
+m <- fit3
+par(mfrow=c(2,2))  
+plot(m)  
+```
+
+\newpage 
+
+##Regression Variance    
+
+```{r allVarLinearRegression, echo=FALSE,caption="Regression variance between Automatic and Manual transmission automobiles."}
+
+m<-mtcars%>%select(mpg,wt,disp,vs)
+fit.for.am.wt <- lm(mpg~wt + am + am*wt, data=mtcars.f)
+cs <- coefficients(fit.for.am.wt)
+beta_0.manual <- cs[[1]]
+beta_1.manual <- cs[[2]]
+beta_0.auto <- beta_0.manual + cs[[3]]
+beta_1.auto<- beta_1.manual + cs[[4]]
+
+midx <- (beta_0.auto - beta_0.manual) / (beta_1.manual-beta_1.auto)
+
+ggplot(mtcars.f,aes(x=wt,y=mpg,col=am))+
+  geom_point()+
+  geom_abline( aes(intercept=beta_0.manual,slope=beta_1.manual),col="red")+
+  geom_abline( aes(intercept=beta_0.auto,slope=beta_1.auto),col="cyan")+
+  geom_vline(xintercept=midx) + 
+  labs(x="Automobile Mass (1000 lbs)",y="Miles per Gallon (U.S.)")+
+  ggtitle("Correlation between the\n Automatic and Manual \nTransmissions based on weight")+
+  theme_bw()
+fit.for.am.disp <- lm(mpg~disp+am+am*disp, data=mtcars.f)
+kable(summary(fit.for.am.wt)$coeff)
+
+
+```
+
+$$y_a=\beta_{0a} + \beta_{1a}*x$$
+$$y_m=\beta_{0m} + \beta_{1m}*x$$
+Let $$y_a=y_m$$
+$$ \beta_{0a} + \beta_{1a}*x = \beta_{0m} + \beta_{1m}*x$$
+$$ \beta_{0a} - \beta_{0m} =   (\beta_{1m} - \beta_{1a})*x $$
+$$ x = \frac{ \beta_{0a} - \beta_{0m}}{\beta_{1m} - \beta_{1a}}$$
+
+
+  The x intercept  = `r round(midx,1)` or `r round(midx*1000,2)` lbs where an automatic transmission is more efficient.
+\newpage 
+
+##BONUS - Correlation Analysis   
+
+```{r, echo=FALSE,fig.cap="Significance Test with Correlation Analysis",fig.width=15,fig.height=15}
+library(corrplot)
+mcor <- cor(mtcars)
+cor.mtest <- function(mat, conf.level = 0.95) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat <- lowCI.mat <- uppCI.mat <- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    diag(lowCI.mat) <- diag(uppCI.mat) <- 1
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], conf.level = conf.level)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+            lowCI.mat[i, j] <- lowCI.mat[j, i] <- tmp$conf.int[1]
+            uppCI.mat[i, j] <- uppCI.mat[j, i] <- tmp$conf.int[2]
+        }
+    }
+    return(list(p.mat, lowCI.mat, uppCI.mat))
+}
+
+res1 <- cor.mtest(mtcars, 0.95)
+res2 <- cor.mtest(mtcars, 0.99)
+## specialized the insignificant value according to the significant level
+corrplot(mcor,p.mat = res1[[1]], sig.level = 0.05, tl.col ="black", tl.srt = 45,tl.cex = 3,addCoef.col ="black")
+```
+
+
+  

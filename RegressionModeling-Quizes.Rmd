@@ -1,0 +1,272 @@
+---
+title: "Regression-Modeling-Quizes"
+author: "Brett Taylor"
+date: "July 12, 2015"
+output: 
+  html_document: 
+    number_sections: yes
+    toc: yes
+---
+#Quiz 1
+##Question 1
+Let the slope having fit __Y__ as the _outcome_ and __X__ as the _predictor_ be denoted as $\beta 1$. Let the slope from fitting X as the outcome and Y as the predictor be denoted as $\gamma 1$. Suppose that you divide $\beta 1$ by $\gamma 1$; in other words consider $\frac{\beta 1}{\gamma 1}$. What is this ratio always equal to?
+
+###First 
+$$Y=\beta 0 + \beta 1 \times X$$
+$$\beta 1=-\beta 0 + \beta 1 \times X$$
+
+$\beta 1$ is the slope of the linear model.    
+$\beta 0$ is the Y intercept of the linear model.    
+**Y** is the outcome   
+**X** is the predictor  
+
+###Second
+$$X=\gamma 0 + \gamma 1 \times Y$$
+$\gamma 1$ is the slope of the linear model.    
+$\gamma 0$ is the Y intercept of the linear model.    
+**X** is the outcome   
+**Y** is the predictor 
+
+
+$$r = \frac{cov_xy}{S_xS_y}$$
+
+$$\sum_{i=1}^n (Y_i - X_i \beta)^2$$
+
+$$\sum_{i=1}^n (X_i - Y_i \gamma)^2$$
+
+
+Correlation libraries to use:    
+```{r, echo=TRUE,message=FALSE,warning=FALSE}
+library(Hmisc)
+library(polycor)
+library(boot)
+library(ggm)
+library(ggplot2)
+library(car)
+library(QuantPsyc)
+library(Rcmdr)
+library(datasets)
+data("mtcars")
+```
+
+
+
+#Quiz 2
+##Question 1
+
+Give a P-value for the two sided hypothesis test of whether β1 from a linear regression model is 0 or not.
+
+*Predictor = x   
+*Outcome = y   
+
+```{r q2-1,echo=TRUE}
+x <- c(0.61, 0.93, 0.83, 0.35, 0.54, 0.16, 0.91, 0.62, 0.62)
+y <- c(0.67, 0.84, 0.6, 0.18, 0.85, 0.47, 1.1, 0.65, 0.36)
+
+cor.test(x,y,alternative = "two.sided",conf.level = 0.95)
+```
+
+##Question 2
+Consider the previous problem, give the estimate of the residual standard deviation.
+
+How to calculate the residual standard deviation
+
+```{r q2-2,echo=TRUE}
+cor(x,y)
+mod1 <- lm(y~x)
+summary(mod1)
+```
+
+$deviation=\sum(observed - model)^2$
+
+##Question 3
+In the mtcars data set, fit a linear regression model of weight (predictor) on mpg (outcome). Get a 95% confidence interval for the expected mpg at the average weight. What is the lower endpoint?
+
+Predictor: weight
+Outcome: mpg
+```{r q2-3,echo=TRUE}
+data("mtcars")
+mod3 <- lm(formula = mpg~wt,data = mtcars)
+sumCoef<-summary(mod3)$coefficients
+sumCoef
+sumCoef[1,1] + c(-1, 1) * qt(.975, df = mod3$df,lower.tail = TRUE) * sumCoef[1, 2]
+cor.test(mtcars$mpg,mtcars$wt)
+mwt <- mean(mtcars$wt)
+predictedValue <- predict(mod3,newdata=data.frame(wt=mwt),interval = "confidence")
+print(predictedValue)
+n<-nrow(mtcars)
+myvar<- 1+1/n + (predictedValue - mwt)/(sum((mtcars$wt-mwt)^2))
+sigma <- sqrt(myvar)
+pv<-predictedValue[2]
+print(pv)
+pv2 <- predictedValue+c(-1,1)*1.877627
+print(pv2)
+g3 <- ggplot(data=mtcars,aes(x=wt,y=mpg))+
+      geom_point()+
+      geom_smooth(method="lm")+
+      geom_hline(yintercept=predictedValue[1],color="red",size=1)+
+      geom_vline(xintercept=mwt,color="red",size=1)+
+      theme_bw()
+print(g3)
+
+        
+
+```
+
+##Question 4
+Refer to the previous question. Read the help file for mtcars. What is the weight coefficient interpreted as?
+
+* __The estimated expected change in mpg per 1,000 lb increase in weight.__   
+* The estimated 1,000 lb change in weight per 1 mpg increase.   
+* It can't be interpreted without further information    
+* The estimated expected change in mpg per 1 lb increase in weight   
+
+```{r q2-4,echo=TRUE}
+
+```
+
+##Question 5
+Consider again the mtcars data set and a linear regression model with mpg as predicted by weight (1,000 lbs). A new car is coming weighing 3000 pounds. Construct a 95% prediction interval for its mpg. What is the upper endpoint? 
+
+```{r q2-5,echo=TRUE}
+predictedValue3 <- predict(mod3,newdata=data.frame(wt=3),interval = "predict")
+print(predictedValue3)
+```
+
+##Question 6
+Consider again the mtcars data set and a linear regression model with mpg as predicted by weight (in 1,000 lbs). A “short” ton is defined as 2,000 lbs. Construct a 95% confidence interval for the expected change in mpg per 1 short ton increase in weight. Give the lower endpoint.
+
+
+```{r q2-6,echo=TRUE}
+library(GGally)
+data("mtcars")
+#Create a column that converts from 1000's of pounds in wt to "tons"
+mtcars$tons<-mtcars$wt/2
+#Create a new version of the linear model
+mod6 <-lm(mpg~tons,mtcars)
+#determine the confidence interval for the slope (gradient)
+confint(mod6)
+summary(mod3)
+summary(mod6)
+```
+
+##Question 7
+
+If my X from a linear regression is measured in centimeters and I convert it to meters what would happen to the slope coefficient?
+
+###Answer - Multiply by the conversion factor (100)
+
+##Question 8
+I have an outcome, Y, and a predictor, X and fit a linear regression model with Y=β0+β1X+ϵ to obtain β^0 and β^1. What would be the consequence to the subsequent slope and intercept if I were to refit the model with a new regressor, X+c for some constant, c?
+
+##Question 9
+Refer back to the mtcars data set with mpg as an outcome and weight (wt) as the predictor. About what is the ratio of the the sum of the squared errors, ∑ni=1(Yi−Y^i)2 when comparing a model with just an intercept (denominator) to the model with the intercept and slope (numerator)?
+```{r q2-9,echo=TRUE}
+fit1 <- lm(mpg~wt,mtcars)
+fit2 <- lm(mpg~1,mtcars)
+n <- nrow(mtcars)
+round((sum(resid(fit2)^2))/(sum(resid(fit1)^2)),1)
+```
+
+#Quiz 3
+##Question 4
+
+```{r q3-4 }
+data("mtcars")
+mtcars$cyl<-factor(mtcars$cyl)
+fit.0 <-lm(mpg ~ wt + factor(cyl),data = mtcars)
+#summary(fit.0)
+fit <- lm(mpg ~ I(wt * 0.5) + factor(cyl), data = mtcars)
+summary(fit)
+mtcars$cyl<-relevel(mtcars$cyl,"8")
+fit.0 <-lm(mpg ~ wt + factor(cyl),data = mtcars)
+#summary(fit.0)
+fit <- lm(mpg ~ I(wt * 0.5) + factor(cyl), data = mtcars)
+summary(fit)
+
+```
+Consider the mtcars data set. Fit a model with mpg as the outcome that includes number of cylinders as a factor variable and weight inlcuded in the model as
+
+lm(mpg ~ I(wt * 0.5) + factor(cyl), data = mtcars)
+How is the wt coefficient interpretted?
+
+* The estimated expected change in MPG per one ton increase in weight for a specific number of cylinders (4, 6, 8).   
+* The estimated expected change in MPG per half ton increase in weight for the average number of cylinders.   
+* The estimated expected change in MPG per half ton increase in weight.    
+* The estimated expected change in MPG per one ton increase in weight.    
+* The estimated expected change in MPG per half ton increase in weight for for a specific number of cylinders (4, 6, 8).    
+
+##Question 5
+
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)    
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)   
+Give the hat diagonal for the most influential point    
+
+```{r q3-5 }
+library(car)
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)    
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)   
+fit<-lm(x~y)
+hvs <- hatvalues(fit)
+max(hvs)
+diag(hvs)
+
+influence(lm(y ~ x))$hat
+##      1      2      3      4      5 
+## 0.2287 0.2438 0.2525 0.2804 0.9946
+## showing how it's actually calculated
+xm <- cbind(1, x)
+diag(xm %*% solve(t(xm) %*% xm) %*% t(xm))
+
+```
+
+
+
+##Question 6
+
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)    
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)   
+Give the hat diagonal for the most influential point    
+
+```{r q3-6 }
+library(car)
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)    
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)   
+fit<-lm(y~x)
+max(hatvalues(fit))
+View(hatvalues(fit))
+class(hatvalues(fit))
+influence.measures(fit)$infmat[5, 'dfb.x']
+ data(cars)
+ mod <- lm(y~0+x)
+max(diag(lm.influence(mod)$hat))
+
+```
+
+#Quiz 4
+##Question 1
+```{r q4-1}
+library(MASS)
+data(shuttle)
+## Make our own variables just for illustration
+shuttle$auto <- 1 * (shuttle$use == "auto")
+shuttle$headwind <- 1 * (shuttle$wind == "head")
+fit.head.0 <- glm(auto ~ headwind, data = shuttle, family = binomial)
+head.1 <- exp(coef(fit.head.0))
+tail.1 <- 1 - .9686888
+head.1/tail.1
+.96868888/tail.1
+tail.1/.96868888
+exp(cbind(coef(fit), confint(fit)))
+
+
+```
+
+##Question 2
+```{r q4-2}
+
+fit.head <- glm(auto ~ headwind + magn, data = shuttle, family = binomial)
+exp(cbind(coef(fit.head), confint(fit.head)))
+exp(coef(fit.head))
+
+```
