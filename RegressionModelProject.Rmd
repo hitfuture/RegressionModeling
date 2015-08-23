@@ -4,7 +4,7 @@ author: "Brett Taylor"
 date: "August 3, 2015"
 output:
   pdf_document:
-    fig_caption: yes
+    fig_caption: no
   html_document: default
 ---
 ```{r init, echo=FALSE, message=FALSE,warning=FALSE}
@@ -40,7 +40,7 @@ fieldInfo <- data.frame(fields,descriptions)
 ```
 #Executive Summary
 
-Our company Motor Trend Magazine did a study in 1974 that collected data on 32 cars that included information about fuel consumption, and also the design factors that may have an influence in this area. The industry has gone through a transformation where the majority of automobiles now use automatic transmissions instead of the traditional manual transmission.  We have identified that there appears to be a significant correlation between the transmission type, and the miles per gallon.  While this appears to be true, when performing a deeper analysis, we see that other automobile design factors do impact the miles per gallon.  You can drive automatic or manual transmission based cars and recognize one of the most impactful aspect of your car is the mass of the vehicle.  When evaluating the weight vs. the transmission type, we then see that the manual transmission is more efficient for light cars, and automatic is better for heavy cars.  If you want the most efficient, then go with a car under 2,800 lbs. and with a standard transmission.
+Our company Motor Trend Magazine did a study in 1974 that collected data on 32 cars that included information about fuel consumption, and also the design factors that may have an influence in this area. The industry has gone through a transformation where the majority of automobiles now use automatic transmissions instead of the traditional manual transmission.  We have identified that there appears to be a significant correlation between the transmission type, and the miles per gallon.  While this appears to be true, when performing a deeper analysis, we see that other automobile design factors do impact the miles per gallon.  You can drive automatic or manual transmission based cars and recognize one of the most impactful aspect of your car is the mass of the vehicle.  When evaluating the weight vs. the transmission type, we then see that the manual transmission is more efficient for light cars, and automatic is better for heavy cars.  If you want the most efficient, then go with a car under 2,800 lbs. and with a standard transmission.  Also realize that you can use this model as long as you also account for a car that has a large horse power can reduce the efficieny of the car.
  
 
 #The Data
@@ -68,20 +68,27 @@ We also identified several variable with high correlation between each other and
 library(knitr)
 fit <- lm(mpg ~ am , data=mtcars.f)
 fit1 <- update(fit, .~.+wt)
-fit3 <- update(fit1, .~.+disp)
+fit2 <- update(fit1,.~.+hp)
+fit3 <- update(fit2, .~.+disp)
 fit5 <- update(fit3, .~.+vs)
-fit6 <- update(fit5, .~.+carb+qsec)
-fit8 <- update(fit6, .~.+hp+drat)
-fit9 <- update(fit8, .~.+gear)
-an<-anova(fit,fit1,fit3,fit5,fit6,fit8,fit9)
+fit6 <- update(fit5, .~.+carb)
+#fit8 <- update(fit6, .~.+drat)
+#fit9 <- update(fit8, .~.+gear)
+an<-anova(fit,fit1,fit2,fit3,fit5,fit6)
 mods <- paste("Model",1:nrow(an),sep=" ")
-
+#print(an)
 kable(attr(an,"heading"))
 
 kable(cbind(model=mods,an),digits = 4,caption="ANOVA model evaluation results")
+
+
 ```
 
-The ANOVA analysis identified that there is only one coefficient under .5 % which is the _wt_ variable which means the mass of the car is the variable worth analyzing.  To determine wheter the manual or automatic transmission was more efficient, we first created a regression model that compared both  auto to manual, and created a scatter plot (_Figure 3._).  This demonstrated that when a car is under the weight of approximately 2808 pounds, the mpg are more efficient for a manual automobile.  Over this mass, then we see that the automatic transmission is more efficient.  
+The ANOVA analysis identified that there are two coefficients under .5 % which are the _wt_ variable which means the mass of the car is the variable worth analyzing, and the _hp_ variable which indicates that there is a smaller value to analyzing this variable.  To determine wheter the manual or automatic transmission was more efficient, we first created a regression model that compared both  auto to manual, and created a scatter plot (_Figure 3._).  This demonstrated that when a car is under the weight of approximately 2808 pounds, the mpg are more efficient for a manual automobile.  Over this mass, then we see that the automatic transmission is more efficient.  
+
+
+##Reference Material    
+[The R Markdown file is available on GitHub](https://github.com/hitfuture/RegressionModeling/blob/master/RegressionModelProject.Rmd)
 
 
 \newpage
@@ -166,14 +173,21 @@ coorPlots <- plotCorrelations(mtcars,dependentVar="mpg")
 do.call("grid.arrange", c(coorPlots, ncol=3))
  
 ```
+_Figure 1._ 
+
+
 \newpage
 
+##Diagnositics  
 
-```{r, echo=FALSE,fig.cap="Regression fit plot" }
-m <- fit3
+```{r regDiagnostics , echo=FALSE, warning=FALSE  }
+m <- fit2
 par(mfrow=c(2,2))  
 plot(m)  
 ```
+
+_Figure 2.  No significant leverage by outliers_   
+
 
 \newpage 
 
@@ -199,11 +213,18 @@ ggplot(mtcars.f,aes(x=wt,y=mpg,col=am))+
   labs(x="Automobile Mass (1000 lbs)",y="Miles per Gallon (U.S.)")+
   ggtitle("Correlation between the\n Automatic and Manual \nTransmissions based on weight")+
   theme_bw()
+
+```
+Figure 3.   
+
+
+```{r ,echo=FALSE}
 fit.for.am.disp <- lm(mpg~disp+am+am*disp, data=mtcars.f)
 kable(summary(fit.for.am.wt)$coeff)
 
 
 ```
+
 
 $$y_a=\beta_{0a} + \beta_{1a}*x$$
 $$y_m=\beta_{0m} + \beta_{1m}*x$$
@@ -216,9 +237,10 @@ $$ x = \frac{ \beta_{0a} - \beta_{0m}}{\beta_{1m} - \beta_{1a}}$$
   The x intercept  = `r round(midx,1)` or `r round(midx*1000,2)` lbs where an automatic transmission is more efficient.
 \newpage 
 
-##BONUS - Correlation Analysis   
 
-```{r, echo=FALSE,fig.cap="Significance Test with Correlation Analysis",fig.width=15,fig.height=15}
+
+
+```{r, echo=FALSE,fig.cap="Significance Test with Correlation Analysis",fig.width=15,fig.height=15,eval=FALSE}
 library(corrplot)
 mcor <- cor(mtcars)
 cor.mtest <- function(mat, conf.level = 0.95) {
@@ -243,6 +265,5 @@ res2 <- cor.mtest(mtcars, 0.99)
 ## specialized the insignificant value according to the significant level
 corrplot(mcor,p.mat = res1[[1]], sig.level = 0.05, tl.col ="black", tl.srt = 45,tl.cex = 3,addCoef.col ="black")
 ```
-
 
   
