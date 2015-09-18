@@ -26,3 +26,97 @@ Outcome: classe
 ##Choosing the predictor variables
 First note that there a lot of variables that only have NA's in place or very few values so remove them because the will be very little value in predicting.
 
+##Clean the Data
+There are many variables in this data set that have a large number of missing values.   
+
+```{r cleanData}
+library(dplyr)
+cleanData <- function (data) {
+  obsCount <- nrow(data)
+  tnames <- names(data)
+  results <- c()
+  index <- 1
+  for(i in 1:ncol(data)){
+    numberOfNAs <-sum(is.na(data[,i]))
+    
+    if(numberOfNAs > (.5 * obsCount)) {
+      results[index] <- (tnames[i])
+      index <- index + 1
+    }
+  }
+  
+  data <- (data[,setdiff(tnames,results)])
+ 
+
+  return(data)
+}
+pmltraining <- read.csv("./data/pml-training.csv",na.strings = c("","#DIV/0!","NA"))
+pmltraining <- cleanData(pmltraining)
+pmltraining <-  pmltraining%>%select(-Column1)
+pmltesting <-read.csv("./data/pml-testing.csv",na.strings = c("","#DIV/0!","NA"))
+pmltesting <- cleanData(pmltesting)
+
+
+```
+
+##Build the Model
+```{r }
+library(caret)
+library(dplyr)
+set.seed(2040)
+pmltraining <- pmltraining%>%filter(classe != 4)
+ inTrain <- createDataPartition(y = pmltraining$classe,  p = .75, list = FALSE) 
+ training <- pmltraining[inTrain,]
+ validation <- pmltraining[-inTrain,]
+
+## The format of the results 
+
+```
+
+##Create a Model      
+```{r}
+ fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated twenty times
+                           repeats = 3)
+  plsFit <- train(classe ~ ., 
+                  data = training, 
+                  method = "pls",
+                  trControl = fitControl,
+                  preProc = c("center", "scale"))
+  
+    gmbFit1 <- train(classe ~ ., 
+                  data = training, 
+                  method = "gbm",
+                  trControl = fitControl
+                  )
+str(gmbFit1)
+ 
+```
+
+##Predict 
+
+```{r}
+validation.results <- predict(gmbFit1,newdata = validation)
+validation.df <- data.frame(validation$classe,validation.results)
+denom <- nrow(validation.df)
+matchCount  <- sum(validataion.df[,1] == validation.df[,2])
+accuracyOfData <- (matchCount/denom)*100
+confusionMatrix(validation.df$validation.results,validation.df$validation.classe)
+
+```
+
+##Testing Set
+
+```{r}
+
+
+
+
+
+
+
+testing.results <- predict(gmbFit1,newdata = pmltesting)
+
+```
