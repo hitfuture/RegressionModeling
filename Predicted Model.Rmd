@@ -31,6 +31,12 @@ There are many variables in this data set that have a large number of missing va
 
 ```{r cleanData}
 library(dplyr)
+library(caret)
+nearZero <- nearZeroVar(pml.training,saveMetrics = TRUE)
+namesToProcess <- names(pml.training)[!nearZero$nzv]
+pmltraining2 <-pml.training[,namesToProcess]
+
+
 cleanData <- function (data) {
   obsCount <- nrow(data)
   tnames <- names(data)
@@ -52,10 +58,29 @@ cleanData <- function (data) {
 }
 pmltraining <- read.csv("./data/pml-training.csv",na.strings = c("","#DIV/0!","NA"))
 pmltraining <- cleanData(pmltraining)
-pmltraining <-  pmltraining%>%select(-Column1)
+#The first column is a sequential identifier which should not be a predictor.
+pmltraining <-  pmltraining%>%select(-Column1,-user_name,
+                                     -raw_timestamp_part_1,-raw_timestamp_part_2,-new_window,
+                                    -num_window )
+#The user-name attribute has a 1:1 corelation with classe and should not be a predictor since other sets of data 
 pmltesting <-read.csv("./data/pml-testing.csv",na.strings = c("","#DIV/0!","NA"))
 pmltesting <- cleanData(pmltesting)
+#pmltesting <- pmltesting$c
 
+
+```
+##Explore the Data
+
+```{r}
+library(rgl) 
+qplot(roll_belt,num_window, data=pmltraining2,fill=num_window,
+      geom=c("boxplot","jitter"))
+plot3d(pmltraining2$roll_belt,pmltraining2$yaw_belt,
+       pmltraining2$pitch_belt,size=.75,type="s",lit=FALSE)
+
+plot3d(pmltraining2$roll_belt,pmltraining2$yaw_belt,
+       pmltraining2$pitch_belt,size=1.25,type="s",col="blue")
+play3d(spin3d(),duration = 20)
 
 ```
 
@@ -65,6 +90,8 @@ library(caret)
 library(dplyr)
 set.seed(2040)
 pmltraining <- pmltraining%>%filter(classe != 4)
+pmltraining$classe <- factor(pmltraining$classe)
+
  inTrain <- createDataPartition(y = pmltraining$classe,  p = .75, list = FALSE) 
  training <- pmltraining[inTrain,]
  validation <- pmltraining[-inTrain,]
@@ -73,7 +100,8 @@ pmltraining <- pmltraining%>%filter(classe != 4)
 
 ```
 
-##Create a Model      
+##Create a Model    
+
 ```{r}
  fitControl <- trainControl(## 10-fold CV
                            method = "repeatedcv",
@@ -86,32 +114,43 @@ pmltraining <- pmltraining%>%filter(classe != 4)
                   trControl = fitControl,
                   preProc = c("center", "scale"))
   
-    gmbFit1 <- train(classe ~ ., 
+ tot.time <-  system.time({ gmbFit1 <- train(classe ~ ., 
                   data = training, 
                   method = "gbm",
                   trControl = fitControl
-                  )
+                  )})
+set.seed(2040)
+tot.time2 <-  system.time({ rfFit1 <- train(classe ~ ., 
+                  data = pmltraining, 
+                  method = "rf",
+                  trControl = fitControl,
+                  prox=TRUE
+                  )})
 str(gmbFit1)
+summary(gmbFit1)
  
 ```
 
 ##Predict 
 
 ```{r}
+library(rattle)
+
+
 validation.results <- predict(gmbFit1,newdata = validation)
 validation.df <- data.frame(validation$classe,validation.results)
 denom <- nrow(validation.df)
-matchCount  <- sum(validataion.df[,1] == validation.df[,2])
+matchCount  <- sum(validation.df[,1] == validation.df[,2])
 accuracyOfData <- (matchCount/denom)*100
 confusionMatrix(validation.df$validation.results,validation.df$validation.classe)
-
+fancyRpartPlot(gmbFit1$finalModel)
 ```
 
 ##Testing Set
 
 ```{r}
 
-
+fancyRpartPlot(gmbFit1$finalModel)
 
 
 

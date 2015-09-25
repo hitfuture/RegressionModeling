@@ -1,4 +1,4 @@
-pmltraining <- read.csv("./data/pml-training.csv",na.strings = c("","#DIV/0!"))
+pmltraining <- read.csv("./data/pml-training.csv",na.strings = c("","#DIV/0!","NA"))
 obsCount <- nrow(pmltraining)
 tnames <- names(pmltraining)
 results <- c()
@@ -13,4 +13,4 @@ for(i in 1:ncol(pmltraining)){
 }
 
 
-modelVars <- (pmltraining[,setdiff(tnames,results)])
+pmltraining <- (pmltraining[,setdiff(tnames,results)])

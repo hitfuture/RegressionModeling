@@ -91,6 +91,24 @@ img {
 <h2>Choosing the predictor variables</h2>
 <p>First note that there a lot of variables that only have NA’s in place or very few values so remove them because the will be very little value in predicting.</p>
 </div>
+<div id="clean-the-data" class="section level2">
+<h2>Clean the Data</h2>
+<pre class="r"><code>pmltraining &lt;- pmltraining &lt;- read.csv(&quot;./data/pml-training.csv&quot;,na.strings = c(&quot;&quot;,&quot;#DIV/0!&quot;,&quot;NA&quot;))
+obsCount &lt;- nrow(pmltraining)
+tnames &lt;- names(pmltraining)
+results &lt;- c()
+index &lt;- 1
+for(i in 1:ncol(pmltraining)){
+  numberOfNAs &lt;-sum(is.na(pmltraining[,i]))
+  
+  if(numberOfNAs &gt; (.5 * obsCount)) {
+    results[index] &lt;- (tnames[i])
+    index &lt;- index + 1
+  }
+}
+
+pmltraining &lt;- (pmltraining[,setdiff(tnames,results)])</code></pre>
+</div>
 </div>
 
 
