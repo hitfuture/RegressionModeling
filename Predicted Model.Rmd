@@ -31,12 +31,17 @@ There are many variables in this data set that have a large number of missing va
 
 ```{r cleanData}
 library(dplyr)
+<<<<<<< HEAD
 library(caret)
 nearZero <- nearZeroVar(pml.training,saveMetrics = TRUE)
 namesToProcess <- names(pml.training)[!nearZero$nzv]
 pmltraining2 <-pml.training[,namesToProcess]
 
 
+=======
+library(mailR)
+library(gtools)
+>>>>>>> origin/master
 cleanData <- function (data) {
   obsCount <- nrow(data)
   tnames <- names(data)
@@ -56,13 +61,65 @@ cleanData <- function (data) {
 
   return(data)
 }
+sendMessageToMe <- function (subject, body) {
+  sender <- "brett.vmail@gmail.com"
+  recipients <- c("brett.r.taylor@me.com")
+  send.mail(from = sender,
+            to = recipients,
+            subject=subject,
+            body = body,
+            smtp = list(host.name = "smtp.gmail.com", port = 587, 
+                        user.name="brett.vmail@gmail.com", passwd="ysfwzrcbpzxffcdg",tls=TRUE),
+            authenticate = TRUE,
+            send = TRUE,
+            debug=FALSE)
+}
+
+sendStartMessage <- function (msg) {
+  startTime <- paste("Start at",Sys.time())
+    message(startTime)
+    sendMessageToMe(paste("model execution began at",startTime), msg )
+}
+sendEndMessage <- function (msg,duration,mod ) {
+  endTime <- paste("End at",Sys.time())
+  message(endTime)
+  timeToExecStr <- if(!exists("duration")) {
+    "Execution time unknown"
+  } else { paste( "Execution time:",duration[3])}
+  modStr <- if(!exists("mod")) {
+    "Model not available"
+  } else { capture.output( mod)}
+  sendMessageToMe(paste("model execution completed at",endTime),paste(msg,timeToExecStr))
+}
+
+runModel <- function(expression, description=""){
+   mf <- match.call() # makes expr an expression that can be evaluated
+   e1 <- parent.frame()
+  startTime <- paste("Start at",Sys.time())
+  message(startTime)
+  sendMessageToMe(paste("model execution began at",startTime), description)
+  result <- eval(mf$expression,e1)
+  endTime <- paste("End at",Sys.time())
+  message(endTime)
+  
+  sendMessageToMe(paste("model execution completed at",endTime), paste(description,"summary",paste(capture.output(result),collapse = "")))
+  return(result)
+}
+runModel(a <- 1+2,"Can I add this and set a variable")
 pmltraining <- read.csv("./data/pml-training.csv",na.strings = c("","#DIV/0!","NA"))
 pmltraining <- cleanData(pmltraining)
+<<<<<<< HEAD
 #The first column is a sequential identifier which should not be a predictor.
 pmltraining <-  pmltraining%>%select(-Column1,-user_name,
                                      -raw_timestamp_part_1,-raw_timestamp_part_2,-new_window,
                                     -num_window )
 #The user-name attribute has a 1:1 corelation with classe and should not be a predictor since other sets of data 
+=======
+#Remove the timestamp because it is directly correlated to the raw timestamp
+pmltraining <-  pmltraining%>%select(-Column1)
+pmltraining <-  pmltraining%>%select(-cvtd_timestamp)
+
+>>>>>>> origin/master
 pmltesting <-read.csv("./data/pml-testing.csv",na.strings = c("","#DIV/0!","NA"))
 pmltesting <- cleanData(pmltesting)
 #pmltesting <- pmltesting$c
@@ -78,12 +135,27 @@ qplot(roll_belt,num_window, data=pmltraining2,fill=num_window,
 plot3d(pmltraining2$roll_belt,pmltraining2$yaw_belt,
        pmltraining2$pitch_belt,size=.75,type="s",lit=FALSE)
 
+<<<<<<< HEAD
 plot3d(pmltraining2$roll_belt,pmltraining2$yaw_belt,
        pmltraining2$pitch_belt,size=1.25,type="s",col="blue")
 play3d(spin3d(),duration = 20)
+=======
+pmltesting <- pmltesting%>%select(-cvtd_timestamp)
+
+>>>>>>> origin/master
 
 ```
 
+##Explore the Data
+We need to get rid of potential predictors that will bias the outcome.
+```{r explore1}
+featurePlot(x=pmltraining[,c("user_name","total_accel_belt","total_accel_arm", "total_accel_dumbbell","total_accel_forearm")],
+            y=pmltraining$classe,plot = "pairs")
+
+qplot(user_name,classe,color=user_name,data=pmltraining,geom = "boxplot")
+qplot(total_accel_belt,classe,color=user_name,data=pmltraining)
+
+```
 ##Build the Model
 ```{r }
 library(caret)
@@ -95,6 +167,8 @@ pmltraining$classe <- factor(pmltraining$classe)
  inTrain <- createDataPartition(y = pmltraining$classe,  p = .75, list = FALSE) 
  training <- pmltraining[inTrain,]
  validation <- pmltraining[-inTrain,]
+ 
+ 
 
 ## The format of the results 
 
@@ -103,15 +177,32 @@ pmltraining$classe <- factor(pmltraining$classe)
 ##Create a Model    
 
 ```{r}
- fitControl <- trainControl(## 10-fold CV
+
+fitControl <- trainControl(## 10-fold CV
                            method = "repeatedcv",
                            number = 10,
                            ## repeated twenty times
+                           verboseIter	= FALSE,
+
                            repeats = 3)
-  plsFit <- train(classe ~ ., 
-                  data = training, 
+ fitControl2 <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated twenty times
+                           verboseIter	= FALSE,
+
+                           repeats = 10)
+#gc()
+set.seed(2040)
+
+msg <- "Model 1 - pls"
+
+runModel( 
+  dur0.1 <-  { system.time({ plsFit <- train(classe ~ .,  
+                  data = raining,100), 
                   method = "pls",
                   trControl = fitControl,
+<<<<<<< HEAD
                   preProc = c("center", "scale"))
   
  tot.time <-  system.time({ gmbFit1 <- train(classe ~ ., 
@@ -128,16 +219,117 @@ tot.time2 <-  system.time({ rfFit1 <- train(classe ~ .,
                   )})
 str(gmbFit1)
 summary(gmbFit1)
+=======
+                  preProc = c("center", "scale"))})},
+msg
+)
+#gc()
+set.seed(2040)
+library(doMC)
+registerDoMC(cores = 4)
+runModel( dur1.1 <-   system.time({ gmbFit1 <- train(classe ~ ., 
+                  data = training, 
+                  method = "gbm",
+                  trControl = fitControl
+                  )}), "Model 2 - gmb has started"
+)
+set.seed(2040)
+
  
+fitControlSVM <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           verboseIter	= FALSE,
+                            classProbs = TRUE,
+                           repeats = 3)
+
+runModel(
+      dur4 <- system.time({ svmFit1 <- train(classe ~ ., data = training,
+                 method = "svmRadial",
+                 trControl = fitControlSVM,
+                 preProc = c("center", "scale"),
+                 tuneLength = 8,
+                 metric = "ROC")
+
+                  }),"Model 3 - svmRadial is starting")
+#gc()
+set.seed(2040)
+>>>>>>> origin/master
+ 
+runModel(dur5 <- system.time({ gmbFit4 <- train(classe ~ ., data = training[,-(1:4)],
+                 method = "gbm",
+                 trControl = fitControl
+                 )
+
+                  }),
+         "Model 4 - gbm minus first 4 columns"
+) 
+
+
+set.seed(2040)
+runModel(
+  dur6 <- system.time({ gmbFit6 <- train(classe ~ ., data = training[,-(1:5)],
+                 method = "gbm",
+                 trControl = fitControl2
+                 )
+
+                  }),
+      "Model 5 - gbm minus first 5 columns")
+ 
+set.seed(2040)
+runModel(
+dur7 <- system.time({ rfmFit6 <- train(classe ~ ., data = training[,-(1:4)],
+                 method = "rf",
+                 trControl = fitControl
+                 )
+
+                  }),"Model 6 - rf minus first 4 columns"
+) 
+
+#Remove window number to see how much of an impact it has on prediction
+#gc()
+set.seed(2040)
+runModel(
+  dur8 <- system.time({ rfmFit7 <- train(classe ~ ., data = training[,-(1:5)],
+                 method = "rf",
+                 trControl = fitControl
+                 )
+
+                  }),
+  "Model 7 - rf minus first 5 columns") 
 ```
 
+```{r measurePerformance}
+performanceMetrics <- as.data.frame(rbind(dur0.1,dur1.1,dur6,dur7,dur8));
+summary(as.data.frame(performanceMetrics/60))
+sum(performanceMetrics$elapsed/(60*60)) #Hours
+```
 ##Predict 
 
 ```{r}
+<<<<<<< HEAD
 library(rattle)
 
 
 validation.results <- predict(gmbFit1,newdata = validation)
+=======
+validation.results <- predict(gmbFit3,newdata = validation)
+validation.df <- data.frame(validation$classe,validation.results)
+denom <- nrow(validation.df)
+matchCount  <- sum(validataion.df[,1] == validation.df[,2])
+accuracyOfData <- (matchCount/denom)*100
+confusionMatrix(factor(validation.df$validation.results),validation.df$validation.classe)
+
+validation.results <- predict(svmFit1,newdata = validation)
+validation.df <- data.frame(validation$classe,validation.results)
+denom <- nrow(validation.df)
+matchCount  <- sum(validataion.df[,1] == validation.df[,2])
+accuracyOfData <- (matchCount/denom)*100
+confusionMatrix(validation.df$validation.results,validation.df$validation.classe)
+
+##8 Validation
+validation.results <- predict(rfmFit7,newdata = validation)
+>>>>>>> origin/master
 validation.df <- data.frame(validation$classe,validation.results)
 denom <- nrow(validation.df)
 matchCount  <- sum(validation.df[,1] == validation.df[,2])
@@ -155,7 +347,7 @@ fancyRpartPlot(gmbFit1$finalModel)
 
 
 
-
-testing.results <- predict(gmbFit1,newdata = pmltesting)
+testing.results.gmb <- predict(gmbFit3,newdata = pmltesting)
+testing.results.svm <-  predict(svmFit1,newdata = pmltesting)
 
 ```
